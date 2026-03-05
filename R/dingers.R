@@ -3,47 +3,62 @@ library(tidyverse)
 # ----------------------------
 # 1) Pull HR leaderboard from Baseball Savant
 # ----------------------------
+##############################
+# Function to Update Website #
+##############################
 savant_hr_tracker_leaders <- function(season,
                                       cat = c("adj_xhr", "xhr"),
                                       player_type = "Batter",
                                       team = "",
                                       min = 0,
                                       sort = "hr_total",
-                                      sortDir = "desc") {
+                                      sortDir = "desc",
+                                      cache_dir = "cache",
+                                      max_age_hours = 6) {
+  
   season <- as.integer(season)
   cat <- match.arg(cat)
   
-  url <- paste0(
-    "https://baseballsavant.mlb.com/leaderboard/home-runs?",
-    "player_type=", player_type,
-    "&team=", team,
-    "&min=", min,
-    "&cat=", cat,
-    "&year=", season,
-    "&sort=", sort,
-    "&sortDir=", sortDir,
-    "&csv=true"
+  dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  cache_file <- file.path(
+    cache_dir,
+    paste0("savant_hr_", season, "_", cat, "_", player_type, ".csv")
   )
   
-  df <- readr::read_csv(url, show_col_types = FALSE, progress = FALSE)
+  is_fresh <- file.exists(cache_file) &&
+    difftime(Sys.time(), file.info(cache_file)$mtime, units = "hours") < max_age_hours
   
-  # Identify columns (tolerant to small header changes)
+  if (is_fresh) {
+    df <- readr::read_csv(cache_file, show_col_types = FALSE, progress = FALSE)
+  } else {
+    url <- paste0(
+      "https://baseballsavant.mlb.com/leaderboard/home-runs?",
+      "player_type=", player_type,
+      "&team=", team,
+      "&min=", min,
+      "&cat=", cat,
+      "&year=", season,
+      "&sort=", sort,
+      "&sortDir=", sortDir,
+      "&csv=true"
+    )
+    df <- readr::read_csv(url, show_col_types = FALSE, progress = FALSE)
+    readr::write_csv(df, cache_file)
+  }
+  
+  # column checks + normalization
   hr_col <- intersect(names(df), c("hr_total", "actual_hr", "HR", "Actual HR"))[1]
   player_col <- intersect(names(df), c("player", "Player", "player_name"))[1]
-  
   if (is.na(hr_col)) stop("Could not find the 'Actual HR' column (expected hr_total).")
   if (is.na(player_col)) stop("Could not find the player name column.")
   if (!"player_id" %in% names(df)) stop("Could not find player_id column in Savant leaderboard.")
   
-  # Normalize to consistent names
   df %>%
-    rename(
-      player = all_of(player_col),
-      hr_total = all_of(hr_col)
-    ) %>%
+    rename(player = all_of(player_col), hr_total = all_of(hr_col)) %>%
     mutate(
       player_id = as.integer(player_id),
-      hr_total = suppressWarnings(as.integer(hr_total))
+      hr_total  = suppressWarnings(as.integer(hr_total))
     )
 }
 
@@ -112,64 +127,7 @@ update_dingers <- function(roster_csv, season, top_n = 1000, cat = "xhr") {
   )
 }
 
-##############################
-# Function to Update Website #
-##############################
-savant_hr_tracker_leaders <- function(season,
-                                      cat = c("adj_xhr", "xhr"),
-                                      player_type = "Batter",
-                                      team = "",
-                                      min = 0,
-                                      sort = "hr_total",
-                                      sortDir = "desc",
-                                      cache_dir = "cache",
-                                      max_age_hours = 6) {
-  
-  season <- as.integer(season)
-  cat <- match.arg(cat)
-  
-  dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
-  
-  cache_file <- file.path(
-    cache_dir,
-    paste0("savant_hr_", season, "_", cat, "_", player_type, ".csv")
-  )
-  
-  is_fresh <- file.exists(cache_file) &&
-    difftime(Sys.time(), file.info(cache_file)$mtime, units = "hours") < max_age_hours
-  
-  if (is_fresh) {
-    df <- readr::read_csv(cache_file, show_col_types = FALSE, progress = FALSE)
-  } else {
-    url <- paste0(
-      "https://baseballsavant.mlb.com/leaderboard/home-runs?",
-      "player_type=", player_type,
-      "&team=", team,
-      "&min=", min,
-      "&cat=", cat,
-      "&year=", season,
-      "&sort=", sort,
-      "&sortDir=", sortDir,
-      "&csv=true"
-    )
-    df <- readr::read_csv(url, show_col_types = FALSE, progress = FALSE)
-    readr::write_csv(df, cache_file)
-  }
-  
-  # column checks + normalization
-  hr_col <- intersect(names(df), c("hr_total", "actual_hr", "HR", "Actual HR"))[1]
-  player_col <- intersect(names(df), c("player", "Player", "player_name"))[1]
-  if (is.na(hr_col)) stop("Could not find the 'Actual HR' column (expected hr_total).")
-  if (is.na(player_col)) stop("Could not find the player name column.")
-  if (!"player_id" %in% names(df)) stop("Could not find player_id column in Savant leaderboard.")
-  
-  df %>%
-    rename(player = all_of(player_col), hr_total = all_of(hr_col)) %>%
-    mutate(
-      player_id = as.integer(player_id),
-      hr_total  = suppressWarnings(as.integer(hr_total))
-    )
-}
+
 
 #########################################
 # Function to add links to player names #
@@ -197,8 +155,3 @@ savant_player_url <- function(player_name, player_id) {
     "?stats=statcast-r-hitting-mlb"
   )
 }
-
-
-
-
-
