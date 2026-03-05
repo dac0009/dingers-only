@@ -3,7 +3,7 @@ project:
   output-dir: docs
 
 website:
-  title: "League Name Dingers Only"
+  title: "Dingers Only"
   navbar: false
 
 format:
