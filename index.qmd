@@ -1,0 +1,302 @@
+---
+title: "Dingers Only"
+---
+
+```{r}
+library(tidyverse)
+library(reactable)
+library(lubridate)
+library(htmltools)
+
+source("R/dingers.R")
+
+season <- 2025
+cat_choice <- "adj_xhr"
+
+# Build leaderboards (this triggers fetch/cache via your functions)
+lbs <- update_dingers("rosters_test.csv", season = season, top_n = 1000, cat = cat_choice)
+
+rosters_joined <- readr::read_csv("rosters_test.csv", show_col_types = FALSE) %>%
+  mutate(player_id = as.integer(player_id)) %>%
+  left_join(
+    savant_hr(season, cat = cat_choice) %>% select(player_id, player, hr_total),
+    by = "player_id"
+  ) %>%
+  mutate(
+    hr_total = tidyr::replace_na(as.integer(hr_total), 0L),
+    player = dplyr::coalesce(player, player_roster)
+  )
+
+# Page render time (when the HTML was built)
+last_updated <- with_tz(Sys.time(), "America/New_York")
+last_updated_text <- format(last_updated, "%B %d, %Y at %I:%M %p %Z")
+
+# Data fetch time (cache mtime)
+cache_file <- file.path("cache", paste0("savant_hr_", season, "_", cat_choice, "_Batter.csv"))
+data_updated <- if (file.exists(cache_file)) file.info(cache_file)$mtime else Sys.time()
+data_updated <- with_tz(data_updated, "America/New_York")
+data_updated_text <- format(data_updated, "%B %d, %Y at %I:%M %p %Z")
+
+# ---- Dark theme you can reuse on every table ----
+dingers_reactable_theme <- function() {
+  reactableTheme(
+    color = "#f0f0f0",
+    backgroundColor = "#1e1e1e",
+    borderColor = "#2c2c2c",
+    stripedColor = "#242424",
+    highlightColor = "#2a2a2a",
+    cellPadding = "10px 12px",
+    style = list(fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial"),
+    headerStyle = list(
+      background = "#2a2a2a",
+      color = "#f0f0f0",
+      borderColor = "#2c2c2c"
+    ),
+    tableStyle = list(borderRadius = "14px", overflow = "hidden")
+  )
+}
+
+team_details_panel <- function(manager_name, rosters_joined, team_total) {
+  team_players <- rosters_joined %>%
+    filter(manager == manager_name) %>%
+    arrange(desc(hr_total), player)
+  
+  htmltools::div(
+    style = "padding: 12px 14px; background:#1a1a1a; border:1px solid #2c2c2c; border-radius: 12px;",
+    htmltools::tags$div(
+      style = "display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;",
+      htmltools::tags$div(style = "font-size:18px; font-weight:700;", manager_name),
+      htmltools::tags$div(style = "color:#bdbdbd;", paste0("Total HR: ", team_total))
+    ),
+    reactable(
+      team_players %>% select(player_id, player, hr_total),
+      theme = dingers_reactable_theme(),
+      compact = TRUE,
+      bordered = FALSE,
+      striped = TRUE,
+      highlight = TRUE,
+      pagination = FALSE,
+      sortable = FALSE,
+      columns = list(
+        player_id = colDef(show = FALSE),
+        player = colDef(
+          name = "Player",
+          minWidth = 220,
+          cell = function(value, index) {
+            id <- team_players$player_id[index]
+            url <- savant_player_url(value, id)
+            htmltools::tags$a(
+              href = url,
+              target = "_blank",
+              style = "color:#9ecbff; text-decoration:none;",
+              value
+            )
+          }
+        ),
+        hr_total = colDef(
+          name = "HR",
+          align = "center",
+          format = colFormat(digits = 0),
+          width = 90
+        )
+      )
+    )
+  )
+}
+
+####
+safe_id <- function(x) {
+  x <- tolower(trimws(x))
+  x <- gsub("[^a-z0-9]+", "-", x)
+  x <- gsub("(^-|-$)", "", x)
+  x
+}
+
+manager_modal <- function(manager_name, rosters_joined) {
+  mid <- paste0("mgr-", safe_id(manager_name))
+  
+  team_players <- rosters_joined %>%
+    filter(manager == manager_name) %>%
+    arrange(desc(hr_total), player)
+  
+  team_total <- sum(team_players$hr_total, na.rm = TRUE)
+  
+  # Mini reactable inside the modal
+  roster_tbl <- reactable(
+    team_players %>% select(player_id, player, hr_total),
+    theme = dingers_reactable_theme(),
+    compact = TRUE,
+    bordered = TRUE,
+    striped = TRUE,
+    highlight = TRUE,
+    pagination = FALSE,
+    sortable = FALSE,
+    columns = list(
+      player_id = colDef(show = FALSE),
+      player = colDef(
+        name = "Player",
+        minWidth = 220,
+        cell = function(value, index) {
+          id <- team_players$player_id[index]
+          url <- savant_player_url(value, id)
+          tags$a(
+            href = url,
+            target = "_blank",
+            style = "color:#9ecbff; text-decoration:none;",
+            value
+          )
+        }
+      ),
+      hr_total = colDef(name = "HR", align = "center", format = colFormat(digits = 0), width = 90)
+    )
+  )
+  
+  # Bootstrap modal markup
+  tags$div(
+    class = "modal fade",
+    id = mid,
+    tabindex = "-1",
+    `aria-hidden` = "true",
+    tags$div(
+      class = "modal-dialog modal-lg modal-dialog-centered",
+      tags$div(
+        class = "modal-content",
+        style = "background:#1a1a1a; border:1px solid #2c2c2c; border-radius: 14px;",
+        tags$div(
+          class = "modal-header",
+          style = "border-bottom:1px solid #2c2c2c;",
+          tags$div(
+            tags$h5(class = "modal-title", style = "color:#f0f0f0; font-weight:700;", manager_name),
+            tags$div(style = "color:#bdbdbd; margin-top:2px;", paste0("Total HR: ", team_total))
+          ),
+          tags$button(
+            type = "button",
+            class = "btn-close btn-close-white",
+            `data-bs-dismiss` = "modal",
+            `aria-label` = "Close"
+          )
+        ),
+        tags$div(class = "modal-body", roster_tbl)
+      )
+    )
+  )
+}
+
+team_table <- function(team_lb) {
+  team_lb2 <- team_lb %>%
+    mutate(modal_id = paste0("mgr-", safe_id(manager)))
+  
+  reactable(
+    team_lb2,
+    theme = dingers_reactable_theme(),
+    defaultSorted = "total_hr",
+    defaultSortOrder = "desc",
+    striped = TRUE,
+    highlight = TRUE,
+    bordered = TRUE,
+    columns = list(
+      modal_id = colDef(show = FALSE),
+      details = colDef(
+        name = "Details",
+        width = 110,
+        align = "center",
+        sortable = FALSE,
+        cell = function(value, index) {
+          mid <- paste0("#", team_lb2$modal_id[index])
+          tags$button(
+            type = "button",
+            class = "details-btn",
+            `data-bs-toggle` = "modal",
+            `data-bs-target` = mid,
+            "Details"
+          )
+        }
+      ),
+      rank = colDef(name = "Rank", align = "center", width = 80),
+      manager = colDef(name = "Manager", minWidth = 160),
+      total_hr = colDef(name = "Total HR", align = "center", format = colFormat(digits = 0))
+    ),
+    defaultColDef = colDef(minWidth = 100)
+  )
+}
+
+player_table <- function(player_lb) {
+  reactable(
+    player_lb,
+    theme = dingers_reactable_theme(),
+    defaultSorted = "hr_total",
+    defaultSortOrder = "desc",
+    striped = TRUE,
+    highlight = TRUE,
+    bordered = TRUE,
+    searchable = TRUE,
+    columns = list(
+      rank = colDef(name = "Rank", align = "center", width = 80),
+      
+      player_id = colDef(show = FALSE),  # keep for link building, hide from display
+      
+      player = colDef(
+        name = "Player",
+        minWidth = 240,
+        cell = function(value, index) {
+          id <- player_lb$player_id[index]
+          url <- savant_player_url(value, id)
+          htmltools::tags$a(
+            href = url,
+            target = "_blank",
+            style = "color:#9ecbff; text-decoration:none;",
+            value
+          )
+        }
+      ),
+      
+      manager = colDef(name = "Manager", minWidth = 140),
+      
+      hr_total = colDef(
+        name = "HR",
+        align = "center",
+        format = colFormat(digits = 0),
+        defaultSortOrder = "desc"
+      )
+    )
+  )
+}
+
+
+team_for_table <- lbs$team %>% mutate(details = "")
+
+```
+
+```{r}
+htmltools::tags$div(
+  class = "subtitle",
+  htmltools::HTML(paste0(
+    "<strong>Last updated (Site rendered):</strong> ", last_updated_text, "<br>",
+    "<strong>Data last fetched (Savant cache):</strong> ", data_updated_text
+  ))
+)
+```
+
+# 🏆 Dingers Only Leaderboard 📈
+
+```{r}
+team_for_table <- lbs$team %>% mutate(details = "")
+team_table(team_for_table)
+```
+
+```{r}
+modals <- lapply(unique(rosters_joined$manager), manager_modal, rosters_joined = rosters_joined)
+htmltools::tagList(modals)
+```
+
+---
+
+# ☄️ Player Homerun Leaderboard 📈
+
+```{r}
+player_table(lbs$players)
+```
+
+---
+
+Data Provided by [Baseball Savant](https://baseballsavant.mlb.com/)
