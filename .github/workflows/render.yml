@@ -40,26 +40,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-pkgs-v1-${{ runner.os }}-${{ hashFiles('.github/workflows/render.yml') }}
-          restore-keys: r-pkgs-v1-${{ runner.os }}-
+          key: r-pkgs-v2-${{ runner.os }}-${{ hashFiles('.github/workflows/render.yml') }}
+          restore-keys: r-pkgs-v2-${{ runner.os }}-
 
       # ── 5. Install R packages ──────────────────────────────────────────
       #    Only installs if not already in the cache above.
       - name: Install R packages
-        shell: Rscript {0}
         run: |
-          pkgs <- c(
-            "tidyverse",
-            "reactable",
-            "lubridate",
-            "htmltools",
-            "stringi",
-            "readr"
-          )
-          missing <- pkgs[!pkgs %in% rownames(installed.packages())]
-          if (length(missing)) {
-            install.packages(missing, repos = "https://cloud.r-project.org")
-          }
+          Rscript -e '
+            lib <- Sys.getenv("R_LIBS_USER")
+            dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+            pkgs <- c("tidyverse", "reactable", "lubridate", "htmltools", "stringi", "readr")
+            missing <- pkgs[!pkgs %in% rownames(installed.packages(lib.loc = lib))]
+            if (length(missing)) {
+              install.packages(missing, lib = lib, repos = "https://cloud.r-project.org")
+            }
+          '
 
       # ── 6. Render the site ─────────────────────────────────────────────
       - name: Render Quarto site
