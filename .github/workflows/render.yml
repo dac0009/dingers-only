@@ -1,75 +1,53 @@
 name: Render & Deploy Dingers Only
 
 on:
-  # Run on a schedule — every 6 hours, on the hour
   schedule:
     - cron: "0 */6 * * *"
-
-  # Also run whenever you push to main (so manual roster edits deploy instantly)
   push:
     branches: [main]
-
-  # Let you trigger a manual rebuild from the GitHub Actions tab
   workflow_dispatch:
 
 jobs:
   render-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to push the rebuilt docs/ back to the repo
+      contents: write
 
     steps:
-      # ── 1. Check out the repo ──────────────────────────────────────────
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # ── 2. Install Quarto ──────────────────────────────────────────────
       - name: Install Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-      # ── 3. Set up R ────────────────────────────────────────────────────
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
         with:
-          r-version: "4.4"   # pin to a stable release; bump when you upgrade locally
+          r-version: "4.4"
+          use-public-rspm: true   # fast pre-built binaries — much faster installs
 
-      # ── 4. Cache the R package library ────────────────────────────────
-      #    The cache key includes the OS and a hash of the install script below.
-      #    If you add a new package, bump the "v1" prefix to bust the cache.
-      - name: Cache R packages
-        uses: actions/cache@v4
+      # Reads package list from DESCRIPTION file in repo root
+      - name: Install R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          path: ${{ env.R_LIBS_USER }}
-          key: r-pkgs-v2-${{ runner.os }}-${{ hashFiles('.github/workflows/render.yml') }}
-          restore-keys: r-pkgs-v2-${{ runner.os }}-
+          packages: |
+            tidyverse
+            reactable
+            lubridate
+            htmltools
+            stringi
+            readr
 
-      # ── 5. Install R packages ──────────────────────────────────────────
-      #    Only installs if not already in the cache above.
-      - name: Install R packages
-        run: |
-          Rscript -e '
-            lib <- Sys.getenv("R_LIBS_USER")
-            dir.create(lib, recursive = TRUE, showWarnings = FALSE)
-            pkgs <- c("tidyverse", "reactable", "lubridate", "htmltools", "stringi", "readr")
-            missing <- pkgs[!pkgs %in% rownames(installed.packages(lib.loc = lib))]
-            if (length(missing)) {
-              install.packages(missing, lib = lib, repos = "https://cloud.r-project.org")
-            }
-          '
-
-      # ── 6. Render the site ─────────────────────────────────────────────
       - name: Render Quarto site
         run: quarto render
 
-      # ── 7. Commit and push the rebuilt docs/ ───────────────────────────
-      #    Only commits if something actually changed (avoids empty commits
-      #    during the off-season when Savant data doesn't change).
       - name: Commit and push docs/
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/
-          # Exit cleanly if there's nothing new to commit
           git diff --cached --quiet && echo "No changes to commit." && exit 0
+          git commit -m "chore: auto-render site [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+          git push
           git commit -m "chore: auto-render site [$(date -u '+%Y-%m-%d %H:%M UTC')]"
           git push
