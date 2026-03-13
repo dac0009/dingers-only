@@ -1,0 +1,11 @@
+Package: dingers-only
+Type: Website
+Title: Dingers Only
+Version: 0.1.0
+Imports:
+    tidyverse,
+    reactable,
+    lubridate,
+    htmltools,
+    stringi,
+    readr
