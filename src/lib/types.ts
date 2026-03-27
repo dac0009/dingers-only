@@ -8,6 +8,7 @@ export interface PlayerStats {
   player_id: number;
   player_name: string;
   hr_total: number;
+  games_played: number;
   manager: string | null;
 }
 
