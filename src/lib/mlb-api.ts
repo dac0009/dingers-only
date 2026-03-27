@@ -4,22 +4,15 @@ import { readRoster } from './roster';
 const MLB_API_BASE = 'https://statsapi.mlb.com/api/v1';
 
 // Cache in memory for 5 minutes to avoid hammering the API
-let cache: { data: Map<number, { name: string; hr: number; gp: number }>; ts: number } | null = null;
+let cache: { data: Map<number, { name: string; hr: number; gp: number; careerHR: number; careerGP: number }>; ts: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 
 interface MLBStatsResponse {
-  stats?: Array<{
-    splits?: Array<{
-      stat?: {
-        homeRuns?: number;
-        gamesPlayed?: number;
-      };
-    }>;
-  }>;
   people?: Array<{
     id: number;
     fullName: string;
     stats?: Array<{
+      type?: { displayName?: string };
       splits?: Array<{
         stat?: {
           homeRuns?: number;
@@ -33,13 +26,13 @@ interface MLBStatsResponse {
 async function fetchPlayerStats(
   playerIds: number[],
   season: number
-): Promise<Map<number, { name: string; hr: number; gp: number }>> {
+): Promise<Map<number, { name: string; hr: number; gp: number; careerHR: number; careerGP: number }>> {
   // Check cache
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return cache.data;
   }
 
-  const results = new Map<number, { name: string; hr: number; gp: number }>();
+  const results = new Map<number, { name: string; hr: number; gp: number; careerHR: number; careerGP: number }>();
 
   // MLB API supports fetching multiple people in one call
   // We'll batch in groups of 40
@@ -50,7 +43,8 @@ async function fetchPlayerStats(
 
   for (const batch of batches) {
     const ids = batch.join(',');
-    const url = `${MLB_API_BASE}/people?personIds=${ids}&hydrate=stats(group=[hitting],type=[season],season=${season})`;
+    // Fetch both season AND career stats in one call
+    const url = `${MLB_API_BASE}/people?personIds=${ids}&hydrate=stats(group=[hitting],type=[season,career],season=${season})`;
 
     try {
       const res = await fetch(url, {
@@ -69,17 +63,31 @@ async function fetchPlayerStats(
         for (const person of data.people) {
           let hr = 0;
           let gp = 0;
-          if (person.stats && person.stats.length > 0) {
-            const splits = person.stats[0]?.splits;
-            if (splits && splits.length > 0) {
-              hr = splits[0]?.stat?.homeRuns ?? 0;
-              gp = splits[0]?.stat?.gamesPlayed ?? 0;
+          let careerHR = 0;
+          let careerGP = 0;
+
+          if (person.stats) {
+            for (const statGroup of person.stats) {
+              const typeName = statGroup.type?.displayName ?? '';
+              const splits = statGroup.splits;
+              if (splits && splits.length > 0) {
+                if (typeName === 'season') {
+                  hr = splits[0]?.stat?.homeRuns ?? 0;
+                  gp = splits[0]?.stat?.gamesPlayed ?? 0;
+                } else if (typeName === 'career') {
+                  careerHR = splits[0]?.stat?.homeRuns ?? 0;
+                  careerGP = splits[0]?.stat?.gamesPlayed ?? 0;
+                }
+              }
             }
           }
+
           results.set(person.id, {
             name: person.fullName,
             hr,
             gp,
+            careerHR,
+            careerGP,
           });
         }
       }
@@ -105,6 +113,7 @@ export async function getLeagueData(season: number = 2026): Promise<LeagueData> 
       player_name: s?.name ?? r.player_roster.split(', ').reverse().join(' '),
       hr_total: s?.hr ?? 0,
       games_played: s?.gp ?? 0,
+      career_hr_rate: (s && s.careerGP > 0) ? s.careerHR / s.careerGP : 0.14,
       manager: r.manager,
     };
   });
