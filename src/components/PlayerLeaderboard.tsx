@@ -71,10 +71,11 @@ export default function PlayerLeaderboard({ players }: Props) {
       </div>
 
       {/* Table header */}
-      <div className="grid grid-cols-[50px_1fr_140px_80px] sm:grid-cols-[60px_1fr_180px_100px] items-center px-4 sm:px-6 py-2.5 border-b border-dinger-border bg-dinger-card/80">
+      <div className="grid grid-cols-[50px_1fr_140px_80px] sm:grid-cols-[60px_1fr_160px_140px_80px] items-center px-4 sm:px-6 py-2.5 border-b border-dinger-border bg-dinger-card/80">
         <span className="text-xs font-mono uppercase text-dinger-muted tracking-widest">#</span>
         <span className="text-xs font-mono uppercase text-dinger-muted tracking-widest">Player</span>
         <span className="text-xs font-mono uppercase text-dinger-muted tracking-widest">Manager</span>
+        <span className="text-xs font-mono uppercase text-dinger-muted tracking-widest hidden sm:block">Progress</span>
         <span className="text-xs font-mono uppercase text-dinger-muted tracking-widest text-center">HR</span>
       </div>
 
@@ -83,11 +84,13 @@ export default function PlayerLeaderboard({ players }: Props) {
         {filtered.map((player, i) => {
           const rank = sortBy === 'hr' ? i + 1 : players.indexOf(player) + 1;
           const savantUrl = `https://baseballsavant.mlb.com/savant-player/${player.player_name.toLowerCase().replace(/\s+/g, '-')}-${player.player_id}`;
+          const maxHR = players.length > 0 ? players[0].hr_total : 1;
+          const pct = maxHR > 0 ? (player.hr_total / maxHR) * 100 : 0;
 
           return (
             <div
               key={`${player.player_id}-${player.manager}`}
-              className="grid grid-cols-[50px_1fr_140px_80px] sm:grid-cols-[60px_1fr_180px_100px] items-center px-4 sm:px-6 py-3 border-b border-dinger-border/30 row-glow transition-all duration-150"
+              className="grid grid-cols-[50px_1fr_140px_80px] sm:grid-cols-[60px_1fr_160px_140px_80px] items-center px-4 sm:px-6 py-3 border-b border-dinger-border/30 row-glow transition-all duration-150"
             >
               <div className="flex items-center justify-center">
                 <RankCell rank={sortBy === 'hr' ? i + 1 : rank} />
@@ -106,6 +109,19 @@ export default function PlayerLeaderboard({ players }: Props) {
 
               <div className="text-xs sm:text-sm text-dinger-muted font-body truncate">
                 {player.manager ?? 'Free Agent'}
+              </div>
+
+              <div className="hidden sm:flex items-center">
+                <div className="h-2 bg-dinger-border rounded-full overflow-hidden flex-1">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${
+                      player.hr_total > 0
+                        ? 'bg-gradient-to-r from-amber-600 to-amber-400'
+                        : ''
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
 
               <div className="text-center">
