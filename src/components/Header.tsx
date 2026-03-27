@@ -31,7 +31,7 @@ export default function Header({ lastUpdated, onRefresh }: HeaderProps) {
             <span className="text-dinger-accent"> ONLY</span>
           </h1>
           <p className="font-body text-dinger-muted text-sm sm:text-base mt-2 tracking-wide">
-            FANTASY HR LEAGUE • LIVE FROM MLB
+            YOU HANG EM, WE BANG EM!
           </p>
         </div>
 
