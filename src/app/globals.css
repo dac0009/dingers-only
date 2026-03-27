@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bebas Neue", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --color-dinger-bg: #0a0a0f;
+  --color-dinger-card: #111118;
+  --color-dinger-border: #1e1e2a;
+  --color-dinger-accent: #f59e0b;
+  --color-dinger-accent-hot: #ef4444;
+  --color-dinger-muted: #6b7280;
+  --color-dinger-text: #e5e7eb;
+  --color-dinger-text-bright: #f9fafb;
+  --animate-fade-up: fade-up 0.5s ease-out forwards;
+  --animate-count-up: count-up 0.3s ease-out forwards;
+
+  @keyframes fade-up {
+    0% { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes count-up {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+}
+
+@layer base {
+  body {
+    background: var(--color-dinger-bg);
+    color: var(--color-dinger-text);
+    font-family: var(--font-body);
+  }
+}
+
+/* Noise texture overlay */
+.noise-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.03;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Subtle grid pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(245, 158, 11, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 158, 11, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Table hover glow */
+.row-glow:hover {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.06), transparent) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-dinger-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-dinger-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-dinger-muted); }
+
+/* Rank badges */
+.rank-gold { color: #fbbf24; text-shadow: 0 0 8px rgba(251, 191, 36, 0.4); }
+.rank-silver { color: #cbd5e1; text-shadow: 0 0 8px rgba(203, 213, 225, 0.3); }
+.rank-bronze { color: #d97706; text-shadow: 0 0 8px rgba(217, 119, 6, 0.3); }
+
+/* Admin panel styles */
+.admin-input {
+  background: var(--color-dinger-card);
+  border: 1px solid var(--color-dinger-border);
+  color: var(--color-dinger-text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-body);
+  transition: border-color 0.2s;
+}
+.admin-input:focus {
+  outline: none;
+  border-color: var(--color-dinger-accent);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.admin-btn {
+  background: var(--color-dinger-accent);
+  color: #0a0a0f;
+  font-weight: 600;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-body);
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+.admin-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.admin-btn-danger {
+  background: var(--color-dinger-accent-hot);
+  color: white;
+}
