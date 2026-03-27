@@ -10,16 +10,14 @@ import Footer from '@/components/Footer';
 import LeagueStatsHero from '@/components/LeagueStatsHero';
 import SeasonProjections from '@/components/SeasonProjections';
 import HRMap from '@/components/HRMap';
-import TrashTalkBoard from '@/components/TrashTalkBoard';
 
-type Tab = 'teams' | 'players' | 'projections' | 'hrmap' | 'talk';
+type Tab = 'teams' | 'players' | 'projections' | 'hrmap';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'teams', label: 'STANDINGS', icon: '🏆' },
   { id: 'players', label: 'PLAYERS', icon: '☄️' },
   { id: 'projections', label: 'PROJECTIONS', icon: '📊' },
   { id: 'hrmap', label: 'HR MAP', icon: '🗺️' },
-  { id: 'talk', label: 'TRASH TALK', icon: '🗣️' },
 ];
 
 export default function Home() {
@@ -135,12 +133,6 @@ export default function Home() {
             {activeTab === 'hrmap' && (
               <div className="animate-fade-up">
                 <HRMap managers={managers} />
-              </div>
-            )}
-
-            {activeTab === 'talk' && (
-              <div className="animate-fade-up">
-                <TrashTalkBoard managers={managers} />
               </div>
             )}
           </>
