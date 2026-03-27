@@ -4,7 +4,7 @@ import { readRoster } from './roster';
 const MLB_API_BASE = 'https://statsapi.mlb.com/api/v1';
 
 // Cache in memory for 5 minutes to avoid hammering the API
-let cache: { data: Map<number, { name: string; hr: number }>; ts: number } | null = null;
+let cache: { data: Map<number, { name: string; hr: number; gp: number }>; ts: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 
 interface MLBStatsResponse {
@@ -12,6 +12,7 @@ interface MLBStatsResponse {
     splits?: Array<{
       stat?: {
         homeRuns?: number;
+        gamesPlayed?: number;
       };
     }>;
   }>;
@@ -22,6 +23,7 @@ interface MLBStatsResponse {
       splits?: Array<{
         stat?: {
           homeRuns?: number;
+          gamesPlayed?: number;
         };
       }>;
     }>;
@@ -31,13 +33,13 @@ interface MLBStatsResponse {
 async function fetchPlayerStats(
   playerIds: number[],
   season: number
-): Promise<Map<number, { name: string; hr: number }>> {
+): Promise<Map<number, { name: string; hr: number; gp: number }>> {
   // Check cache
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return cache.data;
   }
 
-  const results = new Map<number, { name: string; hr: number }>();
+  const results = new Map<number, { name: string; hr: number; gp: number }>();
 
   // MLB API supports fetching multiple people in one call
   // We'll batch in groups of 40
@@ -66,15 +68,18 @@ async function fetchPlayerStats(
       if (data.people) {
         for (const person of data.people) {
           let hr = 0;
+          let gp = 0;
           if (person.stats && person.stats.length > 0) {
             const splits = person.stats[0]?.splits;
             if (splits && splits.length > 0) {
               hr = splits[0]?.stat?.homeRuns ?? 0;
+              gp = splits[0]?.stat?.gamesPlayed ?? 0;
             }
           }
           results.set(person.id, {
             name: person.fullName,
             hr,
+            gp,
           });
         }
       }
@@ -99,6 +104,7 @@ export async function getLeagueData(season: number = 2026): Promise<LeagueData> 
       player_id: r.player_id,
       player_name: s?.name ?? r.player_roster.split(', ').reverse().join(' '),
       hr_total: s?.hr ?? 0,
+      games_played: s?.gp ?? 0,
       manager: r.manager,
     };
   });
