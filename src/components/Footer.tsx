@@ -21,8 +21,16 @@ export default function Footer() {
             Stats refresh automatically every 5 minutes
           </p>
         </div>
-        <div className="font-display text-lg text-dinger-border tracking-tight">
-          DINGERS<span className="text-dinger-accent/30"> ONLY</span>
+        <div className="flex items-center gap-4">
+          <a
+            href="/game"
+            className="text-xs font-mono text-dinger-muted hover:text-dinger-accent transition-colors"
+          >
+            ⚾ Batting Cage
+          </a>
+          <div className="font-display text-lg text-dinger-border tracking-tight">
+            DINGERS<span className="text-dinger-accent/30"> ONLY</span>
+          </div>
         </div>
       </div>
     </footer>
