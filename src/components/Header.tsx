@@ -59,12 +59,6 @@ export default function Header({ lastUpdated, onRefresh }: HeaderProps) {
           >
             ⚾ Batting Cage
           </a>
-          <a
-            href="/game"
-            className="flex items-center gap-1 hover:text-dinger-accent transition-colors"
-          >
-            ⚾ Dinger Derby
-          </a>
         </div>
       </div>
     </header>
