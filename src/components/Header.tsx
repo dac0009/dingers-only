@@ -31,7 +31,7 @@ export default function Header({ lastUpdated, onRefresh }: HeaderProps) {
             <span className="text-dinger-accent"> ONLY</span>
           </h1>
           <p className="font-body text-dinger-muted text-sm sm:text-base mt-2 tracking-wide">
-            YOU HANG EM, WE BANG EM!
+            YOU HANG EM, WE BANG EM
           </p>
         </div>
 
@@ -53,6 +53,18 @@ export default function Header({ lastUpdated, onRefresh }: HeaderProps) {
             </svg>
             Refresh
           </button>
+          <a
+            href="/game"
+            className="flex items-center gap-1 hover:text-dinger-accent transition-colors"
+          >
+            ⚾ Batting Cage
+          </a>
+          <a
+            href="/game"
+            className="flex items-center gap-1 hover:text-dinger-accent transition-colors"
+          >
+            ⚾ Dinger Derby
+          </a>
         </div>
       </div>
     </header>
